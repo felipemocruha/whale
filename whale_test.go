@@ -1,6 +1,7 @@
 package whale
 
 import (
+	"container/list"
 	"fmt"
 	"reflect"
 	"testing"
@@ -81,7 +82,49 @@ func TestTokenize(t *testing.T) {
 	}
 }
 
+func TestSplitSpace(t *testing.T) {
+	want := []string{"(", "+", "1", "2", ")"}
+	res := splitSpace(" ( + 1 2 ) ")
+
+	for i := 0; i < len(want); i++ {
+		if want[i] != res[i] {
+			MakeErrorMsg(t, want, res)
+			break
+		}
+	}
+}
+
 func TestReadFromTokens(t *testing.T) {
 	res, _ := ReadFromTokens(Tokenize("(+ 1 2)"))
-	fmt.Printf("%v", res)
+
+	want := list.New()
+	want.PushBack(Symbol("+"))
+	want.PushBack(Int(1))
+	want.PushBack(Int(2))
+
+	for w, r := want.Front(), res.Front(); r != nil; w, r = w.Next(), r.Next() {
+		if w.Value != r.Value {
+			MakeErrorMsg(t, w.Value, r.Value)
+			break
+		}
+	}
+}
+
+func TestReadFromTokensNested(t *testing.T) {
+	res, _ := ReadFromTokens(Tokenize("(+ (+ 1 2) 1)"))
+
+	win := list.New()
+	win.PushBack(Symbol("+"))
+	win.PushBack(Int(1))
+	win.PushBack(Int(2))
+
+	wout := list.New()
+	wout.PushBack(Symbol("+"))
+	wout.PushBack(win)
+	wout.PushBack(Int(1))
+
+	for r := res.Front(); r != nil; r = r.Next() {
+		fmt.Println(r.Value)
+	}
+
 }

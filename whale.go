@@ -1,14 +1,13 @@
 package whale
 
 import (
+	"container/list"
 	"errors"
 	"fmt"
 	//	"log"
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/Workiva/go-datastructures/list"
 )
 
 const (
@@ -24,54 +23,11 @@ var (
 
 type Symbol string
 
-type Number interface {
-	Value() interface{}
-	Type() interface{}
-}
-
-type Int int
-type Float float64
-
-func (i Int) Value() interface{} {
-	return i
-}
-
-func (i Int) Type() interface{} {
-	return reflect.TypeOf(i)
-}
-
-func (f Float) Value() interface{} {
-	return f
-}
-
-func (f Float) Type() interface{} {
-	return reflect.TypeOf(f)
-}
-
-func popn(tokens []string, n int) (string, []string) {
-	var p string
-	var out []string
-	for i, v := range tokens {
-		if i == n {
-			p = v
-		} else {
-			out = append(out, v)
-		}
-	}
-
-	return p, out
-}
-
-type Atom struct {
-	Value interface{}
-}
-
 func getLines(s string) []string {
 	return strings.Split(s, "\n")
 }
 
 type TokenType int
-
 type Token struct {
 	Type    TokenType
 	Literal string
@@ -130,36 +86,52 @@ func Tokenize(line string) []string {
 	return splitSpace(close)
 }
 
-func ReadFromTokens(tokens []string) (interface{}, error) {
+func ReadFromTokens(tokens []string) (*list.List, error) {
 	if len(tokens) == 0 {
-		return nil,
+		return list.New(),
 			fmt.Errorf("%v: unexpected EOF while reading", SyntaxError)
 	}
 
-	token, tokens := popn(tokens, 0)
-	if token == "(" {
-		l := list.Empty
-		for ok := true; ok; ok = (tokens[0] == ")") {
-			atom, err := ReadFromTokens(tokens)
+	first := tokens[0]
+	rest := append(tokens[:0], tokens[1:]...)
+
+	if first == "(" {
+		l := list.New()
+
+		for rest[0] != ")" {
+			atom, err := ReadFromTokens(rest)
 			if err != nil {
-				return nil, err
+				return list.New(), err
 			}
-			l = l.Add(atom)
+
+			l.PushBack(atom.Front().Value)
 		}
 
-		popn(tokens, 0)
+		rest = append(tokens[:0], tokens[1:]...)
 		return l, nil
 
-	} else if token == ")" {
-		return nil,
+	} else if first == ")" {
+		return list.New(),
 			fmt.Errorf("%v: unexpected ')' at line %v", SyntaxError)
 
 	} else {
-		val, err := GetAtom(token)
+		val, err := GetAtom(first)
 		if err != nil {
-			return nil, err
+			return list.New(), err
 		}
 
-		return val, nil
+		wrapped := list.New()
+		wrapped.PushBack(val)
+
+		return wrapped, nil
 	}
+}
+
+func Parse(source string) (*list.List, error) {
+	parsed, err := ReadFromTokens(Tokenize(source))
+	if err != nil {
+		return list.New(), err
+	}
+
+	return parsed, nil
 }
